@@ -85,6 +85,7 @@ import org.jellyfin.sdk.model.api.PlaybackStopInfo
 import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.extensions.inWholeTicks
 import org.jellyfin.sdk.model.extensions.ticks
+import org.jellyfin.mobile.player.xr.XrPlayerSession
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.component.inject
@@ -136,6 +137,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
     private var analyticsCollector = buildAnalyticsCollector()
     private val initialTracksSelected = AtomicBoolean(false)
     private var fallbackPreferExtensionRenderers = false
+
+    // Android XR session — non-null only when playing 3D content on an XR-capable device
+    var xrPlayerSession: XrPlayerSession? = null
     private var playSpeed = 1f
 
     private var progressUpdateJob: Job? = null
@@ -295,6 +299,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application),
             release()
         }
         _player.value = null
+        xrPlayerSession?.release()
+        xrPlayerSession = null
     }
 
     fun load(jellyfinMediaSource: JellyfinMediaSource, exoMediaSource: MediaSource, playWhenReady: Boolean) {

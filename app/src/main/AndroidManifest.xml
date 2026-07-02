@@ -2,6 +2,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:installLocation="auto">
 
+    <!-- Requries min SDK of 24 but this app targets 21 -->
+    <uses-sdk tools:overrideLibrary="androidx.xr.scenecore, androidx.xr.scenecore.spatial.rendering, androidx.xr.scenecore.spatial.core, androidx.xr.scenecore.runtime, androidx.xr.arcore, androidx.xr.arcore.runtime, androidx.xr.arcore.playservices, androidx.xr.arcore.openxr, androidx.xr.runtime.openxr, androidx.xr.runtime, androidx.xr.runtime.manifest, androidx.xr.runtime.interfaces, com.google.ar.imp.apibindings, com.google.ar.core, androidx.media3.exoplayer, androidx.media3.exoplayer.hls, androidx.media3.datasource.okhttp, androidx.media3.datasource, androidx.media3.extractor, androidx.media3.decoder, androidx.media3.ui, androidx.media3.container, androidx.media3.database, androidx.media3.common, androidx.media3.session" />
+
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission

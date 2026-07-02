@@ -27,6 +27,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -51,11 +52,15 @@ import org.jellyfin.mobile.utils.extensions.getParcelableCompat
 import org.jellyfin.mobile.utils.extensions.isLandscape
 import org.jellyfin.mobile.utils.extensions.keepScreenOn
 import org.jellyfin.mobile.utils.toast
+import org.jellyfin.mobile.player.xr.XrPlayerSession
+import org.jellyfin.mobile.player.xr.XrSupportHelper
 import org.jellyfin.sdk.model.api.MediaSegmentDto
 import org.jellyfin.sdk.model.api.MediaStream
+import org.jellyfin.sdk.model.api.Video3dFormat
 import org.koin.android.ext.android.inject
 import kotlin.math.max
 import androidx.media3.ui.R as Media3R
+import timber.log.Timber
 
 @Suppress("TooManyFunctions")
 class PlayerFragment : Fragment(), BackPressInterceptor {
@@ -99,7 +104,12 @@ class PlayerFragment : Fragment(), BackPressInterceptor {
 
         // Observe ViewModel
         viewModel.player.observe(this) { player ->
-            playerView.player = player
+            val session = viewModel.xrPlayerSession
+            if (player != null && session != null) {
+                session.attachPlayer(player)
+            } else {
+                playerView.player = player
+            }
             if (player == null) parentFragmentManager.popBackStack()
         }
         viewModel.playerState.observe(this) { playerState ->
@@ -126,6 +136,33 @@ class PlayerFragment : Fragment(), BackPressInterceptor {
             // Update title and player menus
             toolbarTitle.text = mediaSource.getName(requireContext())
             playerMenus?.onQueueItemChanged(mediaSource, viewModel.queueManager.hasNext())
+
+            // Setup Android XR Scene if 3D Movie
+            val isXrAvailable = XrSupportHelper.isXrSupported(requireContext())
+            val video3dFormat = mediaSource.sourceInfo.video3dFormat
+
+            if (isXrAvailable && video3dFormat != null) {
+                val xrPlayerSession = XrPlayerSession(video3dFormat)
+
+                if (xrPlayerSession.start(requireActivity())) {
+                    viewModel.xrPlayerSession = xrPlayerSession
+                } else {
+                    viewModel.xrPlayerSession = null
+                    Timber.d("XR setup failed, fall back to standard 2D playback")
+                }
+
+                // Spatial UI Setup
+                viewModel.xrPlayerSession?.let { playerSession ->
+                    // Host controls in a PanelEntity and detach from 2D parent
+                    val controlsView = playerControlsView
+                    (controlsView.parent as? ViewGroup)?.removeView(controlsView)
+                    playerSession.attachControlsView(controlsView, requireActivity())
+
+                    (playerView.player as? ExoPlayer)?.let { player ->
+                        playerSession.attachPlayer(player)
+                    }
+                }
+            }
         }
 
         // Handle fragment arguments, extract playback options and start playback
@@ -410,6 +447,14 @@ class PlayerFragment : Fragment(), BackPressInterceptor {
     override fun onStop() {
         super.onStop()
         orientationListener.disable()
+
+        // FSM process-freezing fix:
+        // When transitioning to Full Space Mode the 2D activity receives ON_STOP.
+        // If the XR session is active we must NOT pause playback here; keeping audio
+        // running protects the process from being killed by the XR resource manager.
+        if (viewModel.xrPlayerSession != null) {
+            viewModel.playerOrNull?.playWhenReady = true
+        }
     }
 
     override fun onDestroyView() {

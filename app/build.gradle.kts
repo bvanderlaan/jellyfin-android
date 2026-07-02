@@ -142,6 +142,10 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     coreLibraryDesugaring(libs.androiddesugarlibs)
 
+    // Android XR
+    implementation(libs.androidx.xr.scenecore)
+    implementation(libs.androidx.xr.runtime)
+
     // Lifecycle
     implementation(libs.bundles.androidx.lifecycle)
 
